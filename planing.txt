@@ -17,6 +17,7 @@ Voting app functionality
 6. there should be one admin who can only maintain the table of candidates and he can't able to vote at all
 7. user can change their password
 8. user can only login with adhar card number and password
+9. admin can dectivate invalid/expired voters
 
 ----------------------------------------------------------------
 
@@ -37,7 +38,11 @@ User Profile:
     /profile: GET - Get the user's profile information.
     /profile/password: PUT - Change the user's password.
 
+
 Admin Candidate Managemet:
-/candidates: POST - Create a new candidate.
-/candidates/:candidateID: PUT - Update an existing cndidate.
-/candidates/:candidateID: DELETE - Delete a candidate from the list.
+    /candidates: POST - Create a new candidate.
+    /candidates/:candidateID: PUT - Update an existing cndidate.
+    /candidates/:candidateID: DELETE - Delete a candidate from the list.
+
+Admin voters Management:
+    /user/deactivate/:userId: PUT - admin deactivates invalid/expired voters
