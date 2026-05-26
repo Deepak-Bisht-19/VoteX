@@ -1,4 +1,5 @@
-Voting application 
+VoteX (A voting application) 
+
 
 WHAT??
 A functionality where user can give vote to given set of candidates
@@ -9,16 +10,19 @@ Routes?
 
 Voting app functionality
 
-1. user sign in / sign up
-2. see the list of candidate
-3. vote one of the candidate, after voting, user can't vote again
-4. there is a route which shows the list of candidates and their live vote counts sorted by their vote count
-5. user data must contain their one unique government id proof named : aadhar card number
-6. there should be one admin who can only maintain the table of candidates and he can't able to vote at all
-7. user can change their password
-8. user can only login with adhar card number and password
-9. admin can dectivate invalid/expired voters
-
+1. user sign in / sign up.
+2. see the list of candidate in a election.
+3. vote one of the candidate, after voting, user can't vote again in the same election.
+4. there is a route which shows the list of candidates in the election and their live vote counts sorted by their vote count.
+5. user data must contain their one unique government id proof named : aadhar card number.
+6. there should be one admin who can only maintain the table of candidates for the elections and the admin can't vote.
+7. user can change their password.
+8. user can only login with adhar card number and password.
+9. users verification get's expired after a period of time.
+10.user can send reverification request to get verified again.
+11.admin can approve the reverification and can also permanently block the fake or expired user.
+12.admin can activate/deactivate voters.
+13.amin can create election and can set their start and end date.
 ----------------------------------------------------------------
 
 Routes

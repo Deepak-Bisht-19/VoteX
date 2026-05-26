@@ -1,4 +1,4 @@
-const e = require("express");
+const express = require("express");
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
 
@@ -24,8 +24,22 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  location: {
+    country: {
+      type: String,
+      default: "India",
+    },
+    state: {
+      type: String,
+      required: true,
+    },
+    district: {
+      type: String,
+      required: true,
+  }
+  },
   aadharCardNumber: {
-    type: Number,
+    type: String,
     required: true,
     unique: true,
     match: /^\d{12}$/, //aadhar card number should be 12 digits
@@ -39,17 +53,23 @@ const userSchema = new mongoose.Schema({
     enum: ["admin", "voter"],
     default: "voter",
   },
-  isVoted: {
-    type: Boolean,
-    default: false,
-  },
+ votedElections: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Election",
+    },
+  ],
   status: {
     type: String,
-    enum: ["active", "inactive", "expired"],
+    enum: ["active", "inactive", "expired", "pending_verification", "permanently_blocked"],
     default: "active",
   },
   validTill: {
     type: Date,
+  },
+  reverificationRequested: {
+    type: Boolean,
+    default: false,
   },
 });
 
@@ -72,10 +92,10 @@ userSchema.pre("save", async function () {
   }
 });
 
-userSchema.methods.comparePassword = async function (candidatePassword) {
+userSchema.methods.comparePassword = async function (userPassword) {
   try {
     //  use bcrypt to copare the provided password with the hashed passwor
-    const isMatch = await bcrypt.compare(candidatePassword, this.password);
+    const isMatch = await bcrypt.compare(userPassword, this.password);
     return isMatch;
   } catch (err) {
     throw err;

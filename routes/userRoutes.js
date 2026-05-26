@@ -1,56 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const User = require("../models/user");
-const { jwtAuthMiddleware, generateToken } = require("../jwt");
-
-// POST route to create a single admin
-router.post("/signup-admin", async (req, res) => {
-  try {
-    // check if admin already exists
-    const adminExists = await User.findOne({
-      role: "admin",
-    });
-
-    if (adminExists) {
-      return res.status(400).json({
-        message: "admin already exists",
-      });
-    }
-
-    // secret admin key
-    if (req.body.adminKey !== process.env.ADMIN_SECRET_KEY) {
-      return res.status(403).json({
-        message: "invalid admin secret key",
-      });
-    }
-
-    const adminData = req.body;
-    adminData.role = "admin";
-    adminData.isActive = true;
-
-    // Remove admin key from the admin data before saving to the database
-    delete adminData.adminKey;
-
-    const newAdmin = new User(adminData);
-    const response = await newAdmin.save();
-
-        console.log("admin data saved");
-
-        const payload = {
-          id: response.id,
-        };
-        console.log(JSON.stringify(payload));
-        const token = generateToken(payload);
-        console.log("Token is : ", token);
-        res.status(200).json({ response: response, token: token });
-    
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({
-      error: "internal server error",
-    });
-  }
-});
+const { jwtAuthMiddleware, generateToken } = require("../middleware/jwt");
 
 // POST route to add a user
 router.post("/signup", async (req, res) => {
@@ -58,11 +9,11 @@ router.post("/signup", async (req, res) => {
     const data = req.body; //assuming the request body contains the user data
 
     // mobile number should be 10 digits
-     if (!/^\d{10}$/.test(data.mobile)) {
-       return res.status(400).json({
-         message: "mobile number should be 10 digits",
-       });
-     }
+    if (!/^\d{10}$/.test(data.mobile)) {
+      return res.status(400).json({
+        message: "mobile number should be 10 digits",
+      });
+    }
 
     // aadhar card number should be 12 digits
     if (!/^\d{12}$/.test(data.aadharCardNumber)) {
@@ -72,8 +23,8 @@ router.post("/signup", async (req, res) => {
     }
     data.role = "voter"; // set default role as voter for all new users
     data.status = "active"; // set default status as active for all new users
+    data.reverificationRequested = false; // set default reverificationRequested as false for all new users
 
-    delete data.validTill; // remove expired user
     const currentDate = new Date(); // set valid till date as 5 year from current date
     currentDate.setFullYear(currentDate.getFullYear() + 5);
     data.validTill = currentDate;
@@ -94,6 +45,13 @@ router.post("/signup", async (req, res) => {
     res.status(200).json({ response: response, token: token });
   } catch (err) {
     console.log(err);
+
+    // duplicate aadhaar number
+    if (err.code === 11000) {
+      if (err.keyPattern?.aadharCardNumber) {
+        return res.status(400).json({message: "aadhaar card number already registered",});
+      }
+    }
     res.status(500).json({ error: "internal server error" });
   }
 });
@@ -120,7 +78,7 @@ router.post("/login", async (req, res) => {
     }
 
     // validity expiry check
-    if (new Date() > user.validTill) {
+    if (user.role !== "admin" && new Date() > user.validTill) {
       user.status = "expired";
 
       await user.save();
@@ -183,54 +141,33 @@ router.put("/profile/password", jwtAuthMiddleware, async (req, res) => {
   }
 });
 
-
-
-// PUT route to deactivate inactive voters(user's)
-router.put("/admin/deactivate/:id", jwtAuthMiddleware, async (req, res) => {
+// PUT route for reverification request
+router.put("/reverification-request", jwtAuthMiddleware, async (req, res) => {
   try {
-    const admin = await User.findById(req.user.id);
-     
-    if (admin.role !== "admin") {
-      return res.status(403).json({ message: "user is not admin" });
-    }
-    const user = await User.findById(req.params.id);
-    if (!user) {
-      return res.status(404).json({ message: "user not found" });
-    }
-    // prevent the admin to deactivate himself
-    if (user.id === admin.id) {
-      return res.status(403).json({ message: "admin cannot deactivate himself" });
-    }
-    user.status = "inactive";
-    await user.save();
-    res.status(200).json({ message: "user deactivated successfully" });
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({ error: "internal server error" });
-  }
-});
+    const user = await User.findById(req.user.id);
 
-// PUT route to reactivate inactive voters(user's)
-router.put("/admin/reactivate/:id", jwtAuthMiddleware, async (req, res) => {
-  try {
-    const admin = await User.findById(req.user.id);
-     
-    if (admin.role !== "admin") {
-      return res.status(403).json({ message: "user is not admin" });
+    if (user.status !== "expired" && user.status !== "inactive") {
+      return res.status(403).json({
+        message: "only expired or inactive users can request reverification",
+      });
     }
-    const user = await User.findById(req.params.id);
-    if (!user) {
-      return res.status(404).json({ message: "user not found" });
+
+    if(user.status === "permanently_blocked"){
+      return res.status(403).json({ message: "user is permanently blocked" });
     }
-    // prevent the admin from reactivating himself
-    if (user._id.toString() === admin._id.toString()) {
-      return res.status(403).json({ message: "admin cannot reactivate himself" });
+
+    if(user.reverificationRequested){
+      return res.status(403).json({ message: "reverification request already sent" });
     }
-    user.status = "active";
+
+    user.reverificationRequested = true;
+    user.status = "pending_verification";
+
     await user.save();
-    res.status(200).json({ message: "user reactivated successfully" });
-  } catch (err) {
-    console.log(err);
+
+    res.status(200).json({ message: "reverification request sent successfully" });
+  } catch (error) {
+    console.log(error);
     res.status(500).json({ error: "internal server error" });
   }
 });

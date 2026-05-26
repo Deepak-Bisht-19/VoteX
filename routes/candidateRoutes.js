@@ -1,8 +1,10 @@
 const express = require("express");
 const router = express.Router();
 const User = require("../models/user");
-const { jwtAuthMiddleware, generateToken } = require("../jwt");
+const { normalizeText } = require("../utils/normalize");
+const { jwtAuthMiddleware, generateToken } = require("../middleware/jwt");
 const Candidate = require("../models/candidate");
+const adminMiddleware = require("../middleware/adminMiddleware");
 
 const checkAdmimRole = async (userID) => {
   try {
@@ -16,13 +18,25 @@ const checkAdmimRole = async (userID) => {
 };
 
 // POST route to add a candidate
-router.post("/", jwtAuthMiddleware, async (req, res) => {
+router.post("/", jwtAuthMiddleware, adminMiddleware, async (req, res) => {
   try {
-    if (!(await checkAdmimRole(req.user.id)))
-      return res.status(403).json({ message: "user is not admin" });
-
     const data = req.body; //assuming the request body contains the candidate data
+    data.name = normalizeText(data.name);
 
+    if (data.party) {
+      data.party = normalizeText(data.party);
+    }
+    const existingCandidate = await Candidate.findOne({
+      name: normalizeText(data.name),
+
+      election: data.election,
+    });
+
+    if (existingCandidate) {
+      return res.status(403).json({
+        message: "Candidate already exists in this election",
+      });
+    }
     //create a new candidate document using the mongoose model
     const newCandidate = new Candidate(data);
 
@@ -44,15 +58,14 @@ router.post("/", jwtAuthMiddleware, async (req, res) => {
 });
 
 // PUT route to update a candidate
-router.put("/:candidateID", jwtAuthMiddleware, async (req, res) => {
+router.put("/update/:candidateID", jwtAuthMiddleware, adminMiddleware, async (req, res) => {
   try {
-    if (!checkAdmimRole(req.user.id))
-      return res.status(403).json({ message: "user is not admin" });
+    const data = req.body; 
 
     const candidateID = req.params.candidateID; //extract the id from the url parameter
-    const updateCandidateData = req.body; //update data for the person
+    const updateCandidateData = req.body; //update data for the candidate
 
-    const response = await candidate.findByIdAndUpdate(
+    const response = await Candidate.findByIdAndUpdate(
       candidateID,
       updateCandidateData,
       {
@@ -74,14 +87,13 @@ router.put("/:candidateID", jwtAuthMiddleware, async (req, res) => {
 });
 
 // DELETE route to delete a candidate
-router.delete("/:candidateID", jwtAuthMiddleware, async (req, res) => {
+router.delete("/delete/:candidateID", jwtAuthMiddleware, adminMiddleware, async (req, res) => {
   try {
-    if (!checkAdmimRole(req.user.id))
-      return res.status(404).json({ message: "user is not admin" });
+    const data = req.body; 
 
     const candidateID = req.params.candidateID; //extract the id from the url parameter
     const updateCandidateData = req.body; //delete data of the candidate
-    const response = await candidate.findByIdAndDelete(candidateID);
+    const response = await Candidate.findByIdAndDelete(candidateID);
 
     if (!response) {
       return res.status(403).json({ error: "Candidate not found" });
@@ -94,8 +106,6 @@ router.delete("/:candidateID", jwtAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: "internl server error" });
   }
 });
-
-
 
 // POST route for voting
 router.post("/vote/:candidateID", jwtAuthMiddleware, async (req, res) => {
@@ -113,9 +123,8 @@ router.post("/vote/:candidateID", jwtAuthMiddleware, async (req, res) => {
     if (user.status !== "active") {
       return res.status(403).json({ message: "account not active" });
     }
-
-    if (user.isVoted) {
-      return res.status(403).json({ message: "user has already voted" });
+    if (user.location !== election.location) {
+      return res.status(403).json({ message: "you cannot vote in this area election" });
     }
 
     // step to cast vote for the candidate
@@ -125,19 +134,87 @@ router.post("/vote/:candidateID", jwtAuthMiddleware, async (req, res) => {
     if (!candidate) {
       return res.status(404).json({ message: "candidate not found" });
     }
-     
-    // step 2: mark the user as voted
-    user.isVoted = true;
+
+    // step 2: find election by id and check if election is active
+    const election = await Election.findById(candidate.election);
+
+    let eligible = false;
+
+    // national election
+    if (election.electionLevel === "national") {
+      const userCountry = normalizeText(user.location.country);
+      const electionCountry = normalizeText(election.location.country);
+
+      eligible = userCountry === electionCountry;
+    }
+
+    // state level election
+    else if (election.electionLevel === "state") {
+      const userState = normalizeText(user.location.state);
+      const electionState = normalizeText(election.location.state);
+
+      eligible = userState === electionState;
+    }
+
+    // district level election
+    else if (election.electionLevel === "district") {
+      const userState = normalizeText(user.location.state);
+      const electionState = normalizeText(election.location.state);
+      const userDistrict = normalizeText(user.location.district);
+      const electionDistrict = normalizeText(election.location.district);
+
+      eligible =
+        userState === electionState && userDistrict === electionDistrict;
+    }
+
+    // block if not eligible
+    if (!eligible) {
+      return res.status(403).json({ message: "You are not eligible for this election",});
+    }
+
+    if (!election) { return res.status(404).json({ message: "election not found" });
+    }
+    const now = new Date();
+
+    if (now < election.startDate) {
+      return res.status(404).json({ message: "election not started" });
+    }
+    if (now > election.endDate) {
+      return res.status(403).json({ message: "election has ended" });
+    }
+    if (election.status === "completed") {
+      return res.status(403).json({ message: "election completed" });
+    }
+
+    //  step 3: check if the user has already voted for this election
+    const alreadyVoted = user.votedElections.includes(election._id);
+    if (alreadyVoted) {
+      return res
+        .status(403)
+        .json({ message: "user has already voted for this election" });
+    }
+
+    // step 4: increment the vote count for the candidate
+    candidate.voteCount += 1;
+    await candidate.save();
+
+    // socket live votes
+    const io = req.app.get("io");
+    io.emit("voteUpdate", {
+      candidateId: candidate._id,
+      candidateName: candidate.name,
+      voteCount: candidate.voteCount,
+      electionId: election._id,
+    });
+
+    // step 5: store the election id in the user's votedElections array to prevent multiple votes for the same election
+   user.votedElections.push(election._id);
     await user.save();
 
-    // step 3: increment the vote count for the candidate
-    candidate.voteCount += 1;
-    
-    // store vote time
-    candidate.votes.push({});
-     await candidate.save();
-
-    res.status(200).json({ message: "vote cast successfully" , votedFor: candidate.name, totalVotes: candidate.voteCount});
+    res.status(200).json({
+      message: "vote cast successfully",
+      votedFor: candidate.name,
+    });
   } catch (err) {
     console.log(err);
     res.status(500).json({ error: "internal server error" });
@@ -168,6 +245,5 @@ router.get("/winner", async (req, res) => {
     res.status(500).json({ error: "internal server error" });
   }
 });
-
 
 module.exports = router;

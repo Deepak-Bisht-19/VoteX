@@ -1,4 +1,4 @@
-const e = require("express");
+const express = require("express");
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
 
@@ -16,21 +16,22 @@ const candidateSchema = new mongoose.Schema({
     type: Number,
     required: true,
   },
-  mobile: {
-    type: String,
+  election: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Election",
+    required: true,
   },
-  votes: [
-    {
-      votedAt: {
-        type: Date,
-        default: Date.now(),
-      },
-    },
-  ],
+  votes: {
+    type: Number,
+    default: 0,
+  },
   voteCount: {
     type: Number,
     default: 0,
   },
+},
+  {
+  timestamps: true
 });
 
 const Candidate = mongoose.model("Candidate", candidateSchema);
