@@ -5,6 +5,23 @@ const { normalizeText } = require("../utils/normalize");
 const { jwtAuthMiddleware, generateToken } = require("../middleware/jwt");
 const Candidate = require("../models/candidate");
 const adminMiddleware = require("../middleware/adminMiddleware");
+const multer = require("multer");
+
+// set up multer to sore files in upload folder
+/*const storage = multer.diskStorage({
+  destination: (req, file, cb) =>{
+    cb(null, "uploads/");
+  },
+  filename: (req, file, cb) => {
+    const suffix = Date.now();
+  cb(null, suffix + "_" + file.originalname);
+  }
+})*/
+
+//configure multer to store file in memory as buffer
+const storage = multer.memoryStorage();
+
+const upload = multer({storage});
 
 const checkAdmimRole = async (userID) => {
   try {
@@ -18,9 +35,16 @@ const checkAdmimRole = async (userID) => {
 };
 
 // POST route to add a candidate
-router.post("/", jwtAuthMiddleware, adminMiddleware, async (req, res) => {
+router.post("/", jwtAuthMiddleware, adminMiddleware, upload.single("logo"), async (req, res) => {
   try {
     const data = req.body; //assuming the request body contains the candidate data
+
+    // Save uploaded logo path
+    // data.logo = req.file ? req.file.path : null;
+
+    const photoBase64 =  req.file ? req.file.buffer.toString("base64"): null;
+    data.logo = photoBase64;
+
     data.name = normalizeText(data.name);
 
     if (data.party) {

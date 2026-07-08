@@ -16,11 +16,14 @@ const candidateSchema = new mongoose.Schema({
     type: Number,
     required: true,
   },
-  election: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Election",
-    required: true,
+  logo: {
+    type: String, //store base64 encoded
   },
+  // election: {
+  //   type: mongoose.Schema.Types.ObjectId,
+  //   ref: "Election",
+  //   required: true,
+  // },
   votes: {
     type: Number,
     default: 0,

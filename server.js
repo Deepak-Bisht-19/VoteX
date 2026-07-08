@@ -29,6 +29,11 @@ io.on("connection", (socket) => {
 app.set("io", io);
 app.use(express.json()); //json data ko parse karne ke liye middleware use karna padega
 
+// home route
+app.get("/", (req, res) => {
+  res.send("🚀 VoteX Backend API is running successfully!");
+});
+
 //import the rouer files
 const userRoutes = require("./routes/userRoutes");
 const candidateRoutes = require("./routes/candidateRoutes");
