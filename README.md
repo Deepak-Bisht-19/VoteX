@@ -7,7 +7,7 @@ VoteX is a secure and scalable backend application built with **Node.js**, **Exp
 ## 🌐 Live Demo
 
 **Backend API:**  
-https://votex-1726.onrender.com
+https://votex-l726.onrender.com
 
 > **Note:** This project is hosted on Render's free tier. The first request may take **30–60 seconds** to wake up the server after inactivity.
 
