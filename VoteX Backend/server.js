@@ -4,6 +4,7 @@ const http = require("http");
 const { Server } = require("socket.io");
 const bodyParser = require("body-parser");
 const cors = require("cors");
+const path = require("path");
 
 const app = express();
 const server = http.createServer(app);
@@ -15,7 +16,7 @@ app.use(bodyParser.json()); //request.body me data store karega
 // socket io setup
 const io = new Server(server, {
   cors: {
-    origin: "*"
+    origin: "*",
   },
 });
 
@@ -47,6 +48,26 @@ app.use("/user", userRoutes);
 app.use("/candidate", candidateRoutes);
 app.use("/election", electionRoutes);
 app.use("/admin", adminRoutes);
+
+// Serve React frontend
+const frontendPath = path.join(__dirname, "../votex-frontend/dist");
+
+app.use(express.static(frontendPath));
+
+// Handle React routes
+app.use((req, res, next) => {
+  if (
+    req.method === "GET" &&
+    !req.path.startsWith("/user") &&
+    !req.path.startsWith("/candidate") &&
+    !req.path.startsWith("/election") &&
+    !req.path.startsWith("/admin")
+  ) {
+    return res.sendFile(path.join(frontendPath, "index.html"));
+  }
+
+  next();
+});
 
 const PORT = process.env.PORT || 3000;
 
