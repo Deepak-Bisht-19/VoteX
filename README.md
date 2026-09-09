@@ -198,6 +198,13 @@ VoteX/
 │   └── server.js
 │
 └── votex-frontend/
+    ├── dist/
+    │   ├── assets/
+    │   │   ├── index.css
+    │   │   └── index.js
+    │   │
+    │   └── index.html
+    │
     ├── src/
     │   ├── api/
     │   │   ├── auth.js
@@ -276,6 +283,7 @@ Create a `.env` file inside the `VoteX Backend` folder:
 PORT=3000
 MONGODB_URL=YOUR_MONGODB_CONNECTION_STRING
 JWT_SECRET=YOUR_SECRET_KEY
+ADMIN_SECRET_KEY =YOUR_ADMIN_KEY
 ```
 
 Start the backend:
@@ -391,9 +399,8 @@ Authorization: Bearer <your_jwt_token>
 - Register User
 - Login User
 - Get Profile
-- Update Profile
 - Change Password
-- Request Re-verification
+- Request Re-verification (When user validity expires after completion of time period)
 
 ## Admin APIs
 
