@@ -12,6 +12,7 @@ const db = require("./db");
 
 app.use(cors()); //cors middleware use karna padega
 app.use(bodyParser.json()); //request.body me data store karega
+app.use(express.json()); //json data ko parse karne ke liye middleware use karna padega
 
 // socket io setup
 const io = new Server(server, {
@@ -30,12 +31,6 @@ io.on("connection", (socket) => {
 
 // make io globally available
 app.set("io", io);
-app.use(express.json()); //json data ko parse karne ke liye middleware use karna padega
-
-// home route
-app.get("/", (req, res) => {
-  res.send("🚀 VoteX Backend API is running successfully!");
-});
 
 //import the rouer files
 const userRoutes = require("./routes/userRoutes");
