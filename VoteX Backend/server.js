@@ -3,11 +3,13 @@ const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
 const bodyParser = require("body-parser");
+const cors = require("cors");
 
 const app = express();
 const server = http.createServer(app);
 const db = require("./db");
 
+app.use(cors()); //cors middleware use karna padega
 app.use(bodyParser.json()); //request.body me data store karega
 
 // socket io setup

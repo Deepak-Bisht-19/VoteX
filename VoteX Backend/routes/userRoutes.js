@@ -152,7 +152,7 @@ router.put("/reverification-request", jwtAuthMiddleware, async (req, res) => {
       });
     }
 
-    if(user.status === "permanently_blocked"){
+    if(user.status === "permanently blocked"){
       return res.status(403).json({ message: "user is permanently blocked" });
     }
 
@@ -161,7 +161,7 @@ router.put("/reverification-request", jwtAuthMiddleware, async (req, res) => {
     }
 
     user.reverificationRequested = true;
-    user.status = "pending_verification";
+    user.status = "pending verification";
 
     await user.save();
 

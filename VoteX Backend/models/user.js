@@ -61,7 +61,7 @@ const userSchema = new mongoose.Schema({
   ],
   status: {
     type: String,
-    enum: ["active", "inactive", "expired", "pending_verification", "permanently_blocked"],
+    enum: ["active", "inactive", "expired", "pending verification", "permanently blocked"],
     default: "active",
   },
   validTill: {

@@ -54,54 +54,77 @@ router.post("/signup-admin", async (req, res) => {
 });
 
 // GET rout to get all referification requests
-router.get("/reverification-requests", jwtAuthMiddleware, adminMiddleware, async (req, res) => {
-  try {
-    const admin = await User.find({reverificationRequested: true});
+router.get(
+  "/reverification-requests",
+  jwtAuthMiddleware,
+  adminMiddleware,
+  async (req, res) => {
+    try {
+      const admin = await User.find({ reverificationRequested: true });
 
-    res.status(200).json(admin);
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({ error: "internal server error" });
-  }
-});
+      res.status(200).json(admin);
+    } catch (error) {
+      console.log(error);
+      res.status(500).json({ error: "internal server error" });
+    }
+  },
+);
 
 // PUT rout to approve voter reverification request
-router.put("/approve-reverification/:id", jwtAuthMiddleware, adminMiddleware, async (req, res) => {
-  try {
-    const user = await User.findById(req.params.id);
-    if (!user) {
-      return res.status(404).json({ message: "user not found" });
+router.put(
+  "/approve-reverification/:id",
+  jwtAuthMiddleware,
+  adminMiddleware,
+  async (req, res) => {
+    try {
+      const user = await User.findById(req.params.id);
+      if (!user) {
+        return res.status(404).json({ message: "user not found" });
+      }
+
+      user.validTill = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
+      user.status = "active";
+
+      user.reverificationRequested = false;
+      await user.save();
+      res.sendStatus(200).json({ message: "User reverification approved" });
+    } catch (error) {
+      console.log(error);
+      res.status(500).json({ error: "internal server error" });
     }
-
-    user.validTill = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
-    user.status = "active";
-
-    user.reverificationRequested = false;
-    await user.save();
-    res.sendStatus(200).json({ message: "User reverification approved" });
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({ error: "internal server error" });
-  }
-});
+  },
+);
 
 // PUT route to permanently block user
-router.put("/permanent-block/:id", jwtAuthMiddleware,adminMiddleware, async (req, res) => {
-  try {
-    const user = await User.findById(req.params.id);
-    
-    if (!user) {
-      return res.status(404).json({ message: "user not found" });
+router.put(
+  "/permanent-block/:id",
+  jwtAuthMiddleware,
+  adminMiddleware,
+  async (req, res) => {
+    try {
+      const user = await User.findById(req.params.id);
+
+      if (!user) {
+        return res.status(404).json({ message: "user not found" });
+      }
+
+      // prevent the admin from permanently blocking himself
+      if (user.role === admin) {
+        return res
+          .status(403)
+          .json({ message: "admin cannot be permanentyly blocked " });
+      }
+
+      user.status = "permanently blocked";
+      user.reverificationRequested = false;
+      await user.save();
+      res.status(200).json({ message: "user permanently blocked" });
+    } catch (error) {
+      console.log(error);
+      res.status(500).json({ error: "internal server error" });
     }
-    user.status = "permanently_blocked";
-    user.reverificationRequested = false;
-    await user.save();
-    res.status(200).json({ message: "user permanently blocked" });
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({ error: "internal server error" });
-  }
-});
+  },
+);
 
 // PUT route to deactivate inactive voters(user's)
 router.put("/deactivate/:id", jwtAuthMiddleware, async (req, res) => {
